@@ -23,6 +23,7 @@ from six.moves import cPickle as pickle
 
 url = 'http://commondatastorage.googleapis.com/books1000/'
 last_percent_reported = None
+data_root = '.' # Change me to store data elsewhere
 
 def download_progress_hook(count, blockSize, totalSize):
   """A hook to report the progress of a download. This is mostly intended for users with
@@ -57,3 +58,32 @@ def maybe_download(filename, expected_bytes, force=False):
 
 train_filename = maybe_download('notMNIST_large.tar.gz', 247336696)
 test_filename = maybe_download('notMNIST_small.tar.gz', 8458043)
+
+
+# Code from Udacity to extract the data files
+num_classes = 10
+np.random.seed(133)
+
+def maybe_extract(filename, force=False):
+  root = os.path.splitext(os.path.splitext(filename)[0])[0]  # remove .tar.gz
+  if os.path.isdir(root) and not force:
+    # You may override by setting force=True.
+    print('%s already present - Skipping extraction of %s.' % (root, filename))
+  else:
+    print('Extracting data for %s. This may take a while. Please wait.' % root)
+    tar = tarfile.open(filename)
+    sys.stdout.flush()
+    tar.extractall(data_root)
+    tar.close()
+  data_folders = [
+    os.path.join(root, d) for d in sorted(os.listdir(root))
+    if os.path.isdir(os.path.join(root, d))]
+  if len(data_folders) != num_classes:
+    raise Exception(
+      'Expected %d folders, one per class. Found %d instead.' % (
+        num_classes, len(data_folders)))
+  print(data_folders)
+  return data_folders
+  
+train_folders = maybe_extract(train_filename)
+test_folders = maybe_extract(test_filename)
