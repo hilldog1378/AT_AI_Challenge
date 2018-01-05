@@ -153,8 +153,8 @@ def maybe_pickle(data_folders, min_num_images_per_class, force=False):
   
   return dataset_names
 
-train_datasets = maybe_pickle(train_folders, 45000)
-test_datasets = maybe_pickle(test_folders, 1800)
+train_datasets = maybe_pickle(train_folders, 50000)
+test_datasets = maybe_pickle(test_folders, 2500)
 
 
 
@@ -203,7 +203,7 @@ def merge_datasets(pickle_files, train_size, valid_size=0):
   return valid_dataset, valid_labels, train_dataset, train_labels
 
 
-train_size = 300000
+train_size = 400000
 valid_size = 15000
 test_size = 15000
 
@@ -267,8 +267,9 @@ model.compile(loss='categorical_crossentropy',
               metrics=['accuracy'])
 
 #Training the model in kreas
-
-model.train_on_batch(train_dataset_kr,train_labels_kr)
+model.fit(train_dataset_kr,train_labels_kr)
+#model.train_on_batch(train_dataset_kr,train_labels_kr)
 
 score = model.evaluate(test_dataset_kr, test_labels_kr, verbose=0)
+test_per = model.predict(test_dataset_kr)
 
