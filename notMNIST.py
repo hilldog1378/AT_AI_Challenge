@@ -22,8 +22,9 @@ from six.moves import cPickle as pickle
 import tensorflow as tf
 from keras.models import Sequential
 from keras.layers import Dense, Dropout, Activation, Flatten
-from keras.layers import Convolution2D, MaxPooling2D
+from keras.layers import Convolution2D, MaxPooling2D, AveragePooling2D
 from keras.utils import np_utils
+
 
 #from keras import backend as K
 #K.set_image_dim_ordering('th')
@@ -252,12 +253,23 @@ vaild_labels_kr = np_utils.to_categorical(valid_labels,10)
 
 model = Sequential()
  
-model.add(Convolution2D(32, 3, strides = 3, activation='relu', input_shape=(28,28,1),data_format = 'channels_last'))
-model.add(Convolution2D(32, 3, strides = 3, activation='relu'))
+model.add(Convolution2D(8, 3, strides = 3, activation='relu', input_shape=(28,28,1),data_format = 'channels_last',padding='same'))
+model.add(Convolution2D(8, 3, strides = 3, activation='relu',padding='same'))
 model.add(MaxPooling2D(pool_size=(2,2)))
 model.add(Dropout(0.25))
- 
+
+model.add(Convolution2D(16, 3, strides = 3, activation='relu',padding='same'))
+#model.add(Convolution2D(16, 3, strides = 3, activation='relu',padding='same'))
+model.add(MaxPooling2D(pool_size=(2,2)))
+model.add(Dropout(0.25))
+
+model.add(Convolution2D(32, 3, strides = 3, activation='relu',padding='same'))
+#model.add(AveragePooling2D(pool_size=(2,2)))
+model.add(Dropout(0.25))
+
 model.add(Flatten())
+model.add(Dense(256, activation='relu'))
+model.add(Dropout(0.5))
 model.add(Dense(128, activation='relu'))
 model.add(Dropout(0.5))
 model.add(Dense(10, activation='softmax'))
@@ -267,9 +279,9 @@ model.compile(loss='categorical_crossentropy',
               metrics=['accuracy'])
 
 #Training the model in kreas
-model.fit(train_dataset_kr,train_labels_kr)
+model.fit(train_dataset_kr,train_labels_kr,epochs = 10, validation_data = (valid_dataset_kr,vaild_labels_kr),batch_size = 256)
 #model.train_on_batch(train_dataset_kr,train_labels_kr)
 
 score = model.evaluate(test_dataset_kr, test_labels_kr, verbose=0)
-test_per = model.predict(test_dataset_kr)
+#test_per = model.predict(test_dataset_kr)
 
