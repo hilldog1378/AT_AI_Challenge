@@ -289,72 +289,84 @@ score = model.evaluate(test_dataset_kr, test_labels_kr, verbose=0)
 
 def cnn_model_fn(features,labels,mode):
     #Input Layer
-    input_layer = tf.reshape(features["x"],[-1,28,28,1])
+    with tf.name_scope('Input'):
+        input_layer = tf.reshape(features["x"],[-1,28,28,1])
     
     #Covolutional Layer #1
-    conv1 = tf.layers.conv2d(
-            inputs=input_layer,
-            filters=8,
-            kernel_size=[3,3],
-            strides = (3,3),
-            padding = 'same',
-            activation = tf.nn.relu)
+    with tf.name_scope('Convolution Layer 1'):
+        conv1 = tf.layers.conv2d(
+                inputs=input_layer,
+                filters=32,
+                kernel_size=[3,3],
+                #strides = (3,3),
+                padding = 'same',
+                activation = tf.nn.relu)
+    
     #Pooling Layer #1
-    pool1 = tf.layers.max_pooling2d(
-            inputs=conv1, 
-            pool_size=[2,2], 
-            strides = 2,
-            padding = 'same')
+    with tf.name_scope('Pooling Layer 1'):
+        pool1 = tf.layers.max_pooling2d(
+                inputs=conv1, 
+                pool_size=[2,2], 
+                strides = 2,
+                padding = 'same')
     
     #Convlolutional Layer #2
-    conv2 = tf.layers.conv2d(
-            inputs = pool1,
-            filters=16,
-            kernel_size = [3,3],
-            strides = 3,
-            padding = 'same')
+    with tf.name_scope('Convolution Layer 2'):
+        conv2 = tf.layers.conv2d(
+                inputs = pool1,
+                filters=64,
+                kernel_size = [3,3],
+                padding = 'same')
     
     #Pooling Lyaer #2
-    pool2 = tf.layers.max_pooling2d(
-            inputs = conv2,
-            pool_size=[2,2],
-            strides = 2,
-            padding = 'same')
+    with tf.name_scope('Pooling Layer 2'):
+        pool2 = tf.layers.max_pooling2d(
+                inputs = conv2,
+                pool_size=[2,2],
+                strides = 2,
+                padding = 'same')
     
     
    
     #Flatten the input
-    flat = tf.reshape(
-            pool2,
-            [-1, 7 * 7 * 16])
+    with tf.name_scope('Flatten'):
+        flat = tf.reshape(
+                pool2,
+                [-1, 7 * 7 * 64])
     
-    #Create a Dense Layer with 256 Neurons 
-    dense392 = tf.layers.dense(
-            inputs = flat,
-            units=392,
-            activation = tf.nn.relu)
+    #Create a Dense Layer with 1024 Neurons
+    with tf.name_scope('Dense: 1024'):
+        dense1024 = tf.layers.dense(
+                inputs = flat,
+                units=1024,
+                activation = tf.nn.relu)
     
     #Does Dropout at 50%
-    dropout_dense392 = tf.layers.dropout(
-            inputs = dense392,
-            rate = 0.5,
-            training=mode == tf.estimator.ModeKeys.TRAIN)
+    with tf.name_scope('Dropout: 1024'):
+        dropout_dense1024 = tf.layers.dropout(
+                inputs = dense1024,
+                rate = 0.5,
+                training=mode == tf.estimator.ModeKeys.TRAIN)
     
-    #Creates a Dense Layer with 128 Neuros
-    dense196 = tf.layers.dense(
-            inputs = dropout_dense392,
-            units = 196,
-            activation = tf.nn.relu)
+    #Creates a Dense Layer with 512 Neuros
+    with tf.name_scope('Dense: 512'):
+        dense512 = tf.layers.dense(
+                inputs = dropout_dense1024,
+                units = 512,
+                activation = tf.nn.relu)
     
     #Does Droupout at 50%
-    dropout_dense196 = tf.layers.dropout(
-            inputs = dense196,
-            rate = 0.5,
-            training=mode == tf.estimator.ModeKeys.TRAIN)
+    with tf.name_scope('Dropout: 512'):
+        dropout_dense512 = tf.layers.dropout(
+                inputs = dense512,
+                rate = 0.5,
+                training=mode == tf.estimator.ModeKeys.TRAIN)
     
-    logits = tf.layers.dense(
-            inputs = dropout_dense196,
-            units = 10)
+    #Logits
+    with tf.name_scope('Logits'):
+        logits = tf.layers.dense(
+                inputs = dropout_dense512,
+                units = 10)
     
     
     
@@ -363,56 +375,60 @@ def cnn_model_fn(features,labels,mode):
             "probabilities": tf.nn.softmax(logits, name="softmax_tensor")
             }
     
+    with tf.name_scope('Predict'):
+        if mode == tf.estimator.ModeKeys.PREDICT:
+            return tf.estimator.EstimatorSpec(mode=mode, predictions=predictions)
     
-    if mode == tf.estimator.ModeKeys.PREDICT:
-        return tf.estimator.EstimatorSpec(mode=mode, predictions=predictions)
+    with tf.name_scope('OneHot Labels'):
+        onehot_labels = tf.one_hot(indices=tf.cast(labels, tf.int32), depth=10)
     
-    onehot_labels = tf.one_hot(indices=tf.cast(labels, tf.int32), depth=10)
-    loss = tf.losses.softmax_cross_entropy(
-            onehot_labels=onehot_labels,
-            logits=logits)
+    with tf.name_scope('Loss'):
+        loss = tf.losses.softmax_cross_entropy(
+                onehot_labels=onehot_labels,
+                logits=logits)
+    with tf.name_scope('Train'):
+        if mode == tf.estimator.ModeKeys.TRAIN:
+            optimizer = tf.train.GradientDescentOptimizer(learning_rate=0.001)
+            train_op= optimizer.minimize(
+                    loss = loss,
+                    global_step=tf.train.get_global_step())
+            return tf.estimator.EstimatorSpec(
+                    mode = mode,
+                    loss = loss,
+                    train_op = train_op)
     
-    if mode == tf.estimator.ModeKeys.TRAIN:
-        optimizer = tf.train.GradientDecentOptimizer(learning_rate=0.001)
-        train_op= optimizer.minimize(
-                loss = loss,
-                global_step=tf.train.get_global_step())
-        return tf.estimator.EstimatorSpec(
-                mode = mode,
-                loss = loss,
-                train_op = train_op)
-        
-    if mode == tf.estimator.ModeKeys.EVAL:
-        eval_metric_ops = {
-                "accuracy": tf.metrics.accuracy(
-                        labels=labels,
-                        predictions=predictions["classes"])}
-        return tf.estimator.EstimatorSpec(
-                mode=mode,
-                loss=loss,
-                eval_metric_ops = eval_metric_ops)
+    with tf.name_scope('Eval'):    
+        if mode == tf.estimator.ModeKeys.EVAL:
+            eval_metric_ops = {
+                    "accuracy": tf.metrics.accuracy(
+                    labels=labels,
+                    predictions=predictions["classes"])}
+            return tf.estimator.EstimatorSpec(
+                    mode=mode,
+                    loss=loss,
+                    eval_metric_ops = eval_metric_ops)
     
     
     
     
 not_mnist_classifier = tf.estimator.Estimator(
-    model_fn=cnn_model_fn, model_dir="/model")    
+    model_fn=cnn_model_fn, model_dir="/tmp/mnist_convnet_model")    
 
 tensors_to_log = {"probabilities": "softmax_tensor"}
 logging_hook = tf.train.LoggingTensorHook(
-        tensors=tensors_to_log, every_n_iter=10)
+        tensors=tensors_to_log, every_n_iter=50)
 
-
+writer = tf.train.SummaryWriter("/tmp/mnist_convnet_model",graph=tf.get_default_graph())
 #training the Tensorflow model
 train_inputs = tf.estimator.inputs.numpy_input_fn(
         x={"x": train_dataset },
         y=train_labels,
-        batch_size=98,
+        batch_size=100,
         num_epochs=None,
         shuffle=True)
 not_mnist_classifier.train(
         input_fn=train_inputs,
-        steps=100,
+        steps=200000,
         hooks=[logging_hook])
 
 #Evaluate
@@ -424,4 +440,14 @@ test_input_fn = tf.estimator.inputs.numpy_input_fn(
         shuffle=False)
 test_results = not_mnist_classifier.evaluate(input_fn=test_input_fn)
 print(test_results)
+
+#2nd set of data to test off of
+
+valid_input_fn = tf.estimator.inputs.numpy_input_fn(
+        x={"x": valid_dataset},
+        y=valid_labels,
+        num_epochs=1,
+        shuffle=False)
+valid_results = not_mnist_classifier.evaluate(input_fn=valid_input_fn)
+print(valid_results)
 
