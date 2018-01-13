@@ -226,7 +226,7 @@ def randomize(dataset, labels):
 train_dataset, train_labels = randomize(train_dataset, train_labels)
 test_dataset, test_labels = randomize(test_dataset, test_labels)
 valid_dataset, valid_labels = randomize(valid_dataset, valid_labels)
-
+'''
 #convert dataset from (nb,w,h) to (nb,w,h,c)
 train_dataset_kr = np.reshape(train_dataset, (train_dataset.shape[0], 28, 28,1))
 test_dataset_kr = np.reshape(test_dataset, (test_dataset.shape[0],28,28,1))
@@ -284,7 +284,7 @@ history = model.fit(train_dataset_kr,train_labels_kr,epochs = 500, validation_da
 
 score = model.evaluate(test_dataset_kr, test_labels_kr, verbose=0)
 #test_per = model.predict(test_dataset_kr)
-
+'''
 
 
 def cnn_model_fn(features,labels,mode):
@@ -295,7 +295,7 @@ def cnn_model_fn(features,labels,mode):
     conv1 = tf.layers.conv2d(
             inputs=input_layer,
             filters=8,
-            kernal_size=[3,3],
+            kernel_size=[3,3],
             strides = (3,3),
             padding = 'same',
             activation = tf.nn.relu)
@@ -311,7 +311,7 @@ def cnn_model_fn(features,labels,mode):
             inputs = pool1,
             filters=16,
             kernel_size = [3,3],
-            stride = 3,
+            strides = 3,
             padding = 'same')
     
     #Pooling Lyaer #2
@@ -329,31 +329,31 @@ def cnn_model_fn(features,labels,mode):
             [-1, 7 * 7 * 16])
     
     #Create a Dense Layer with 256 Neurons 
-    dense256 = tf.layers.dense(
+    dense392 = tf.layers.dense(
             inputs = flat,
-            units=256,
+            units=392,
             activation = tf.nn.relu)
     
     #Does Dropout at 50%
-    dropout_dense256 = tf.layers.dropout(
-            inputs = dense256,
+    dropout_dense392 = tf.layers.dropout(
+            inputs = dense392,
             rate = 0.5,
             training=mode == tf.estimator.ModeKeys.TRAIN)
     
     #Creates a Dense Layer with 128 Neuros
-    dense128 = tf.layers.dense(
-            inputs = dropout_dense256,
-            units = 128,
+    dense196 = tf.layers.dense(
+            inputs = dropout_dense392,
+            units = 196,
             activation = tf.nn.relu)
     
     #Does Droupout at 50%
-    dropout_dense128 = tf.layers.dropout(
-            inputs = dense128,
+    dropout_dense196 = tf.layers.dropout(
+            inputs = dense196,
             rate = 0.5,
             training=mode == tf.estimator.ModeKeys.TRAIN)
     
     logits = tf.layers.dense(
-            inputs = dropout_dense128,
+            inputs = dropout_dense196,
             units = 10)
     
     
@@ -367,7 +367,7 @@ def cnn_model_fn(features,labels,mode):
     if mode == tf.estimator.ModeKeys.PREDICT:
         return tf.estimator.EstimatorSpec(mode=mode, predictions=predictions)
     
-    onehot_labels = tf.one_hot(indeices=tf.cast(labels, tf.int32), depth=10)
+    onehot_labels = tf.one_hot(indices=tf.cast(labels, tf.int32), depth=10)
     loss = tf.losses.softmax_cross_entropy(
             onehot_labels=onehot_labels,
             logits=logits)
@@ -395,7 +395,33 @@ def cnn_model_fn(features,labels,mode):
     
     
     
-    
-    
-    
+not_mnist_classifier = tf.estimator.Estimator(
+    model_fn=cnn_model_fn, model_dir="/model")    
+
+tensors_to_log = {"probabilities": "softmax_tensor"}
+logging_hook = tf.train.LoggingTensorHook(
+        tensors=tensors_to_log, every_n_iter=10)
+
+
+#training the Tensorflow model
+train_inputs = tf.estimator.inputs.numpy_input_fn(
+        x={"x": train_dataset },
+        y=train_labels,
+        batch_size=98,
+        num_epochs=None,
+        shuffle=True)
+not_mnist_classifier.train(
+        input_fn=train_inputs,
+        steps=100,
+        hooks=[logging_hook])
+
+#Evaluate
+
+test_input_fn = tf.estimator.inputs.numpy_input_fn(
+        x={"x": test_dataset},
+        y=test_labels,
+        num_epochs=1,
+        shuffle=False)
+test_results = not_mnist_classifier.evaluate(input_fn=test_input_fn)
+print(test_results)
 
