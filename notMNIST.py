@@ -254,7 +254,7 @@ vaild_labels_kr = np_utils.to_categorical(valid_labels,10)
 model = Sequential()
  
 model.add(Convolution2D(8, 3, strides = 3, activation='relu', input_shape=(28,28,1),data_format = 'channels_last',padding='same'))
-model.add(Convolution2D(8, 3, strides = 3, activation='relu',padding='same'))
+#model.add(Convolution2D(8, 3, strides = 3, activation='relu',padding='same'))
 model.add(MaxPooling2D(pool_size=(2,2)))
 model.add(Dropout(0.25))
 
@@ -279,7 +279,7 @@ model.compile(loss='categorical_crossentropy',
               metrics=['accuracy'])
 
 #Training the model in kreas
-model.fit(train_dataset_kr,train_labels_kr,epochs = 10, validation_data = (valid_dataset_kr,vaild_labels_kr),batch_size = 256)
+history = model.fit(train_dataset_kr,train_labels_kr,epochs = 2000, validation_data = (valid_dataset_kr,vaild_labels_kr),batch_size = 256)
 #model.train_on_batch(train_dataset_kr,train_labels_kr)
 
 score = model.evaluate(test_dataset_kr, test_labels_kr, verbose=0)
