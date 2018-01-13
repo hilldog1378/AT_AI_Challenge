@@ -254,12 +254,12 @@ vaild_labels_kr = np_utils.to_categorical(valid_labels,10)
 model = Sequential()
  
 model.add(Convolution2D(8, 3, strides = 3, activation='relu', input_shape=(28,28,1),data_format = 'channels_last',padding='same'))
-#model.add(Convolution2D(8, 3, strides = 3, activation='relu',padding='same'))
+
 model.add(MaxPooling2D(pool_size=(2,2)))
 model.add(Dropout(0.25))
 
 model.add(Convolution2D(16, 3, strides = 3, activation='relu',padding='same'))
-#model.add(Convolution2D(16, 3, strides = 3, activation='relu',padding='same'))
+
 model.add(MaxPooling2D(pool_size=(2,2)))
 model.add(Dropout(0.25))
 
@@ -279,9 +279,123 @@ model.compile(loss='categorical_crossentropy',
               metrics=['accuracy'])
 
 #Training the model in kreas
-history = model.fit(train_dataset_kr,train_labels_kr,epochs = 2000, validation_data = (valid_dataset_kr,vaild_labels_kr),batch_size = 256)
+history = model.fit(train_dataset_kr,train_labels_kr,epochs = 500, validation_data = (valid_dataset_kr,vaild_labels_kr),batch_size = 256)
 #model.train_on_batch(train_dataset_kr,train_labels_kr)
 
 score = model.evaluate(test_dataset_kr, test_labels_kr, verbose=0)
 #test_per = model.predict(test_dataset_kr)
+
+
+
+def cnn_model_fn(features,labels,mode):
+    #Input Layer
+    input_layer = tf.reshape(features["x"],[-1,28,28,1])
+    
+    #Covolutional Layer #1
+    conv1 = tf.layers.conv2d(
+            inputs=input_layer,
+            filters=8,
+            kernal_size=[3,3],
+            strides = (3,3),
+            padding = 'same',
+            activation = tf.nn.relu)
+    #Pooling Layer #1
+    pool1 = tf.layers.max_pooling2d(
+            inputs=conv1, 
+            pool_size=[2,2], 
+            strides = 2,
+            padding = 'same')
+    
+    #Convlolutional Layer #2
+    conv2 = tf.layers.conv2d(
+            inputs = pool1,
+            filters=16,
+            kernel_size = [3,3],
+            stride = 3,
+            padding = 'same')
+    
+    #Pooling Lyaer #2
+    pool2 = tf.layers.max_pooling2d(
+            inputs = conv2,
+            pool_size=[2,2],
+            strides = 2,
+            padding = 'same')
+    
+    
+   
+    #Flatten the input
+    flat = tf.reshape(
+            pool2,
+            [-1, 7 * 7 * 16])
+    
+    #Create a Dense Layer with 256 Neurons 
+    dense256 = tf.layers.dense(
+            inputs = flat,
+            units=256,
+            activation = tf.nn.relu)
+    
+    #Does Dropout at 50%
+    dropout_dense256 = tf.layers.dropout(
+            inputs = dense256,
+            rate = 0.5,
+            training=mode == tf.estimator.ModeKeys.TRAIN)
+    
+    #Creates a Dense Layer with 128 Neuros
+    dense128 = tf.layers.dense(
+            inputs = dropout_dense256,
+            units = 128,
+            activation = tf.nn.relu)
+    
+    #Does Droupout at 50%
+    dropout_dense128 = tf.layers.dropout(
+            inputs = dense128,
+            rate = 0.5,
+            training=mode == tf.estimator.ModeKeys.TRAIN)
+    
+    logits = tf.layers.dense(
+            inputs = dropout_dense128,
+            units = 10)
+    
+    
+    
+    predictions = {
+            "classes": tf.argmax(input=logits, axis=1),
+            "probabilities": tf.nn.softmax(logits, name="softmax_tensor")
+            }
+    
+    
+    if mode == tf.estimator.ModeKeys.PREDICT:
+        return tf.estimator.EstimatorSpec(mode=mode, predictions=predictions)
+    
+    onehot_labels = tf.one_hot(indeices=tf.cast(labels, tf.int32), depth=10)
+    loss = tf.losses.softmax_cross_entropy(
+            onehot_labels=onehot_labels,
+            logits=logits)
+    
+    if mode == tf.estimator.ModeKeys.TRAIN:
+        optimizer = tf.train.GradientDecentOptimizer(learning_rate=0.001)
+        train_op= optimizer.minimize(
+                loss = loss,
+                global_step=tf.train.get_global_step())
+        return tf.estimator.EstimatorSpec(
+                mode = mode,
+                loss = loss,
+                train_op = train_op)
+        
+    if mode == tf.estimator.ModeKeys.EVAL:
+        eval_metric_ops = {
+                "accuracy": tf.metrics.accuracy(
+                        labels=labels,
+                        predictions=predictions["classes"])}
+        return tf.estimator.EstimatorSpec(
+                mode=mode,
+                loss=loss,
+                eval_metric_ops = eval_metric_ops)
+    
+    
+    
+    
+    
+    
+    
 
